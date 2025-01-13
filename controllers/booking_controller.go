@@ -238,129 +238,141 @@ func (c *BookingController) makeRateLimitedRequest(req *http.Request) (*http.Res
 }
 
 
-    func (c *BookingController) fetchCities(query string) ([]models.City, error) {
+func (c *BookingController) fetchCities(query string) ([]models.City, error) {
 	
-        //!using rate limit
-        apiURL := fmt.Sprintf("https://booking-com18.p.rapidapi.com/stays/auto-complete?query=%s", query)
-        
-        req, err := http.NewRequest("GET", apiURL, nil)
-        if err != nil {
-            return nil, fmt.Errorf("error creating request: %v", err)
-        }
+    //!using rate limit
+    apiURL := fmt.Sprintf("https://booking-com18.p.rapidapi.com/stays/auto-complete?query=%s", query)
     
-        req.Header.Add("x-rapidapi-host", "booking-com18.p.rapidapi.com")
-        req.Header.Add("x-rapidapi-key", c.rapidAPIKey) // Use the stored RapidAPI key
-        // req.Header.Add("x-rapidapi-key", "79d933f58amsh0baa13f673b03f0p16d4a2jsnb299a967d295")
-    
-        resp, err := c.makeRateLimitedRequest(req)
-        if err != nil {
-            return nil, fmt.Errorf("error sending request: %v", err)
-        }
-        defer resp.Body.Close()
-    
-        body, err := io.ReadAll(resp.Body)
-        if err != nil {
-            return nil, fmt.Errorf("error reading response body: %v", err)
-        }
-    
-        if resp.StatusCode != http.StatusOK {
-            return nil, fmt.Errorf("API request failed with status code: %d, body: %s", 
-                resp.StatusCode, string(body))
-        }
-    
-        var citiesResp struct {
-            Data []models.City `json:"data"`
-        }
-        err = json.Unmarshal(body, &citiesResp)
-        if err != nil {
-            return nil, fmt.Errorf("error parsing JSON: %v", err)
-        }
-    
-        return citiesResp.Data, nil
+    req, err := http.NewRequest("GET", apiURL, nil)
+    if err != nil {
+        return nil, fmt.Errorf("error creating request: %v", err)
     }
-    func (c *BookingController) fetchPropertiesForCity(cityName, country string) ([]models.Property, error) {
-        uniqueProperties := make(map[string]models.Property)
-        searchQueries := []string{
-            cityName,
-            fmt.Sprintf("%s hotels", cityName),
-            fmt.Sprintf("%s accommodation", cityName),
-        }
-    
-        for _, query := range searchQueries {
-            encodedQuery := url.QueryEscape(query)
+
+    req.Header.Add("x-rapidapi-host", "booking-com18.p.rapidapi.com")
+    req.Header.Add("x-rapidapi-key", c.rapidAPIKey) // Use the stored RapidAPI key
+    // req.Header.Add("x-rapidapi-key", "79d933f58amsh0baa13f673b03f0p16d4a2jsnb299a967d295")
+
+    resp, err := c.makeRateLimitedRequest(req)
+    if err != nil {
+        return nil, fmt.Errorf("error sending request: %v", err)
+    }
+    defer resp.Body.Close()
+
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+        return nil, fmt.Errorf("error reading response body: %v", err)
+    }
+
+    if resp.StatusCode != http.StatusOK {
+        return nil, fmt.Errorf("API request failed with status code: %d, body: %s", 
+            resp.StatusCode, string(body))
+    }
+
+    var citiesResp struct {
+        Data []models.City `json:"data"`
+    }
+    err = json.Unmarshal(body, &citiesResp)
+    if err != nil {
+        return nil, fmt.Errorf("error parsing JSON: %v", err)
+    }
+
+    return citiesResp.Data, nil
+}
+func (c *BookingController) fetchPropertiesForCity(cityName, country string) ([]models.Property, error) {
+    uniqueProperties := make(map[string]models.Property)
+    var mu sync.Mutex
+    var wg sync.WaitGroup
+
+    searchQueries := []string{
+        cityName,
+        fmt.Sprintf("%s hotels", cityName),
+        fmt.Sprintf("%s accommodation", cityName),
+    }
+
+    for _, query := range searchQueries {
+        wg.Add(1)
+        go func(q string) {
+            defer wg.Done()
+            encodedQuery := url.QueryEscape(q)
             apiURL := fmt.Sprintf("https://booking-com18.p.rapidapi.com/stays/auto-complete?query=%s", encodedQuery)
-    
+
             properties, err := c.fetchPropertyData(apiURL)
             if err != nil {
-                continue // Skip errors and proceed with other queries
+                log.Printf("Error fetching properties: %v", err)
+                return
             }
-    
+
+            mu.Lock()
             for _, prop := range properties {
-                if prop.DestID != "" { // Ensure destId exists
+                if prop.DestID != "" {
                     uniqueProperties[prop.DestID] = prop
                 }
             }
-        }
-    
-        result := make([]models.Property, 0, len(uniqueProperties))
-        for _, prop := range uniqueProperties {
-            result = append(result, prop)
-        }
-    
-        return result, nil
+            mu.Unlock()
+        }(query)
     }
-    
-    func (c *BookingController) fetchPropertyData(apiURL string) ([]models.Property, error) {
-        req, err := http.NewRequest("GET", apiURL, nil)
-        if err != nil {
-            return nil, err
-        }
-    
-        req.Header.Add("x-rapidapi-host", "booking-com18.p.rapidapi.com")
-        req.Header.Add("x-rapidapi-key", c.rapidAPIKey) // Use the stored RapidAPI key
-    
-        resp, err := c.makeRateLimitedRequest(req)
-        if err != nil {
-            return nil, err
-        }
-        defer resp.Body.Close()
-    
-        body, err := io.ReadAll(resp.Body)
-        if err != nil {
-            return nil, err
-        }
-    
-        if resp.StatusCode == 429 || strings.Contains(string(body), "Too many requests") {
-            return nil, fmt.Errorf("rate limit exceeded")
-        }
-    
-        // Unmarshal the JSON response
-        var response struct {
-            Data []struct {
-                DestID   string `json:"dest_id"`
-                Name     string `json:"name"`
-                // Address  string `json:"address"`
-                CityName string `json:"city_name"`
-                // Add other fields if needed
-            } `json:"data"`
-        }
-    
-        err = json.Unmarshal(body, &response)
-        if err != nil {
-            return nil, err
-        }
-    
-        // Map the API response to your models.Property struct
-        properties := make([]models.Property, 0, len(response.Data))
-        for _, item := range response.Data {
-            properties = append(properties, models.Property{
-                DestID:   item.DestID,
-                Name:     item.Name,
-                // Address:  item.Address,
-                CityName: item.CityName,
-                // Map other fields as necessary
-            })
-        }
-    
-        return properties, nil
+
+    wg.Wait()
+
+    result := make([]models.Property, 0, len(uniqueProperties))
+    for _, prop := range uniqueProperties {
+        result = append(result, prop)
     }
+
+    return result, nil
+}
+
+func (c *BookingController) fetchPropertyData(apiURL string) ([]models.Property, error) {
+    req, err := http.NewRequest("GET", apiURL, nil)
+    if err != nil {
+        return nil, err
+    }
+
+    req.Header.Add("x-rapidapi-host", "booking-com18.p.rapidapi.com")
+    req.Header.Add("x-rapidapi-key", c.rapidAPIKey) // Use the stored RapidAPI key
+
+    resp, err := c.makeRateLimitedRequest(req)
+    if err != nil {
+        return nil, err
+    }
+    defer resp.Body.Close()
+
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+        return nil, err
+    }
+
+    if resp.StatusCode == 429 || strings.Contains(string(body), "Too many requests") {
+        return nil, fmt.Errorf("rate limit exceeded")
+    }
+
+    // Unmarshal the JSON response
+    var response struct {
+        Data []struct {
+            DestID   string `json:"dest_id"`
+            Name     string `json:"name"`
+            // Address  string `json:"address"`
+            CityName string `json:"city_name"`
+            // Add other fields if needed
+        } `json:"data"`
+    }
+
+    err = json.Unmarshal(body, &response)
+    if err != nil {
+        return nil, err
+    }
+
+    // Map the API response to your models.Property struct
+    properties := make([]models.Property, 0, len(response.Data))
+    for _, item := range response.Data {
+        properties = append(properties, models.Property{
+            DestID:   item.DestID,
+            Name:     item.Name,
+            // Address:  item.Address,
+            CityName: item.CityName,
+            // Map other fields as necessary
+        })
+    }
+
+    return properties, nil
+}
