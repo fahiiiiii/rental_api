@@ -225,10 +225,17 @@ func (c *BookingController) List() {
 
 
 func (c *BookingController) makeRateLimitedRequest(req *http.Request) (*http.Response, error) {
-	err := c.rateLimiter.Wait(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("rate limiter error: %v", err)
-	}
+    // Wait for rate limiter
+    err := c.rateLimiter.Wait(context.Background())
+    if err != nil {
+        return nil, fmt.Errorf("rate limiter error: %v", err)
+    }
+
+    client := &http.Client{
+        Timeout: 10 * time.Second,
+    }
+    return client.Do(req)
+}
 
 
     func (c *BookingController) fetchCities(query string) ([]models.City, error) {
