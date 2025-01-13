@@ -1,9 +1,9 @@
 package main
 
 import (
-    "property-listing/conf"
-    _ "property-listing/routers"
-    "property-listing/initialize"
+    "rental_api/conf"
+    _ "rental_api/routers"
+    "rental_api/initialize"
     "github.com/beego/beego/v2/server/web"
 )
 
