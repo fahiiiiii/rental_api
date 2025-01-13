@@ -1,9 +1,9 @@
 package main
 
 import (
-    "rental_api/conf"
-    _ "rental_api/routers"
-      "rental_api/initialize"
+    "property-listing/conf"
+    _ "property-listing/routers"
+    "property-listing/initialize"
     "github.com/beego/beego/v2/server/web"
 )
 
@@ -16,7 +16,6 @@ func main() {
     conf.InitDB()
     web.Run()
 }
-
 
 // func main() {
 // 	if beego.BConfig.RunMode == "dev" {

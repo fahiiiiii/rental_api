@@ -1,74 +1,108 @@
 // models/booking.go
 package models
 
-// City represents a city from the Booking.com API
+import (
+    "github.com/beego/beego/v2/client/orm"
+)
+
+// City model represents a city from the Booking.com API
 type City struct {
-	CC1        string  `json:"cc1"`
-	ImageURL   string  `json:"image_url"`
-	Longitude  float64 `json:"longitude"`
-	CityName   string  `json:"city_name"`
-	DestID     string  `json:"dest_id"`
-	Timezone   string  `json:"timezone"`
-	Hotels     int     `json:"hotels"`
-	Label      string  `json:"label"`
-	Country    string  `json:"country"`
-	Region     string  `json:"region"`
-	DestType   string  `json:"dest_type"`
-	Name       string  `json:"name"`
-	Latitude   float64 `json:"latitude"`
-	Type       string  `json:"type"`
+    Id        int64   `orm:"auto;pk" json:"id"`
+    CC1       string  `orm:"size(2)" json:"cc1"`
+    ImageURL  string  `orm:"size(255)" json:"image_url"`
+    Longitude float64 `orm:"digits(10);decimals(7)" json:"longitude"`
+    CityName  string  `orm:"size(100)" json:"city_name"`
+    DestID    string  `orm:"size(50)" json:"dest_id"`
+    Timezone  string  `orm:"size(50)" json:"timezone"`
+    Hotels    int     `orm:"default(0)" json:"hotels"`
+    Label     string  `orm:"size(100)" json:"label"`
+    Country   string  `orm:"size(100)" json:"country"`
+    Region    string  `orm:"size(100)" json:"region"`
+    DestType  string  `orm:"size(50)" json:"dest_type"`
+    Name      string  `orm:"size(100)" json:"name"`
+    Latitude  float64 `orm:"digits(10);decimals(7)" json:"latitude"`
+    Type      string  `orm:"size(50)" json:"type"`
+    Created   time.Time `orm:"auto_now_add;type(datetime)" json:"created"`
+    Updated   time.Time `orm:"auto_now;type(datetime)" json:"updated"`
 }
 
-// Property represents a property from the Booking.com API
+// Property model represents a property from the Booking.com API
 type Property struct {
-	UFI               int64   `json:"ufi"`
-	CheckoutDate      string  `json:"checkoutDate"`
-	ReviewScoreWord   string  `json:"reviewScoreWord"`
-	Longitude         float64 `json:"longitude"`
-	IsPreferred       bool    `json:"isPreferred"`
-	CountryCode       string  `json:"countryCode"`
-	Latitude          float64 `json:"latitude"`
-	WishlistName      string  `json:"wishlistName"`
-	Name              string  `json:"name"`
-	PropertyClass     float64 `json:"accuratePropertyClass"`
-	DestID            string  `json:"dest_id"`
-	CityName          string  `json:"city_name"`
-	Country           string  `json:"country"`
-
-	
+    Id              int64   `orm:"auto;pk" json:"id"`
+    UFI             int64   `orm:"unique" json:"ufi"`
+    CheckoutDate    string  `orm:"size(20)" json:"checkout_date"`
+    ReviewScoreWord string  `orm:"size(50)" json:"review_score_word"`
+    Longitude       float64 `orm:"digits(10);decimals(7)" json:"longitude"`
+    IsPreferred     bool    `orm:"default(false)" json:"is_preferred"`
+    CountryCode     string  `orm:"size(2)" json:"country_code"`
+    Latitude        float64 `orm:"digits(10);decimals(7)" json:"latitude"`
+    WishlistName    string  `orm:"size(100)" json:"wishlist_name"`
+    Name            string  `orm:"size(255)" json:"name"`
+    PropertyClass   float64 `orm:"digits(3);decimals(1)" json:"property_class"`
+    DestID          string  `orm:"size(50)" json:"dest_id"`
+    CityName        string  `orm:"size(100)" json:"city_name"`
+    Country         string  `orm:"size(100)" json:"country"`
+    Created         time.Time `orm:"auto_now_add;type(datetime)" json:"created"`
+    Updated         time.Time `orm:"auto_now;type(datetime)" json:"updated"`
 }
 
-// CityKey represents a unique identifier for a city
+// CityKey model represents a unique identifier for a city
 type CityKey struct {
-	Name    string
-	Country string
+    Id      int64  `orm:"auto;pk" json:"id"`
+    Name    string `orm:"size(100)" json:"name"`
+    Country string `orm:"size(100)" json:"country"`
+    Created time.Time `orm:"auto_now_add;type(datetime)" json:"created"`
+    Updated time.Time `orm:"auto_now;type(datetime)" json:"updated"`
 }
 
-// HotelDetails represents the full hotel information
+// HotelDetails model represents the full hotel information
 type HotelDetails struct {
-    HotelID    string   `json:"hotel_id"`
-    PropertyName string  `json:"property_name"`
-    Type        string  `json:"type"`
-	Bedrooms    int     `json:"bedrooms"` // New field for block_count
-    Bathroom    int     `json:"bathroom"`
-    Amenities   []Facility `json:"amenities"`
-	Description  string `json:"description"`
+    Id           int64      `orm:"auto;pk" json:"id"`
+    HotelID      string     `orm:"size(50);unique" json:"hotel_id"`
+    PropertyName string     `orm:"size(255)" json:"property_name"`
+    Type         string     `orm:"size(50)" json:"type"`
+    Bedrooms     int        `orm:"default(0)" json:"bedrooms"`
+    Bathroom     int        `orm:"default(0)" json:"bathroom"`
+    Amenities    []*Facility `orm:"rel(m2m)" json:"amenities"`
+    Description  string     `orm:"type(text)" json:"description"`
+    Created      time.Time  `orm:"auto_now_add;type(datetime)" json:"created"`
+    Updated      time.Time  `orm:"auto_now;type(datetime)" json:"updated"`
 }
 
-// Facility represents a hotel facility/amenity
+// Facility model represents a hotel facility/amenity
 type Facility struct {
-    Name string `json:"name"`
+    Id      int64  `orm:"auto;pk" json:"id"`
+    Name    string `orm:"size(100)" json:"name"`
+    Created time.Time `orm:"auto_now_add;type(datetime)" json:"created"`
+    Updated time.Time `orm:"auto_now;type(datetime)" json:"updated"`
 }
 
-
+// CategorizedImages model represents different categories of property images
 type CategorizedImages struct {
-    PropertyBuilding []string `json:"property_building"`
-    Property         []string `json:"property"`
-    Room             []string `json:"room"`
-    // Add more categories as needed
+    Id               int64    `orm:"auto;pk" json:"id"`
+    PropertyBuilding []string `orm:"type(json)" json:"property_building"`
+    Property         []string `orm:"type(json)" json:"property"`
+    Room             []string `orm:"type(json)" json:"room"`
+    Created          time.Time `orm:"auto_now_add;type(datetime)" json:"created"`
+    Updated          time.Time `orm:"auto_now;type(datetime)" json:"updated"`
 }
 
+// RatingAndReviews model represents property ratings and reviews
 type RatingAndReviews struct {
-    AverageScoreOutOf10       float64 `json:"average_score_out_of_10"`
-    VpmFavorableReviewCount   int     `json:"vpm_favorable_review_count"`
+    Id                      int64   `orm:"auto;pk" json:"id"`
+    AverageScoreOutOf10    float64 `orm:"digits(4);decimals(2)" json:"average_score_out_of_10"`
+    VpmFavorableReviewCount int     `orm:"default(0)" json:"vpm_favorable_review_count"`
+    Created                 time.Time `orm:"auto_now_add;type(datetime)" json:"created"`
+    Updated                 time.Time `orm:"auto_now;type(datetime)" json:"updated"`
+}
+
+func init() {
+    // Register models to orm
+    orm.RegisterModel(new(City))
+    orm.RegisterModel(new(Property))
+    orm.RegisterModel(new(CityKey))
+    orm.RegisterModel(new(HotelDetails))
+    orm.RegisterModel(new(Facility))
+    orm.RegisterModel(new(CategorizedImages))
+    orm.RegisterModel(new(RatingAndReviews))
 }

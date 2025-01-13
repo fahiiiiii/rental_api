@@ -10,7 +10,7 @@ import (
 
 type PropertyController struct {
     web.Controller
-    // bookingService *services.BookingService
+    bookingService *services.BookingService
 }
 
 // @Title List Properties
