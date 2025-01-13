@@ -22,15 +22,29 @@ type Location struct {
 //     Amenities  []string `db:"amenities" json:"amenities"`
 //     LocationID int      `db:"location_id" json:"location_id"`
 // }
+// type RentalProperty struct {
+//     ID           int            `db:"id" json:"id"`
+//     PropertyName string         `db:"property_name" json:"property_name"`
+//     Type         string         `db:"type" json:"type"`
+//     Bedrooms     int            `db:"bedrooms" json:"bedrooms"`
+//     Bathrooms    int            `db:"bathrooms" json:"bathrooms"`
+//     Amenities    pq.StringArray `gorm:"type:text[]" db:"amenities" json:"amenities"`
+//     LocationID   int            `db:"location_id" json:"location_id"`
+// }
 type RentalProperty struct {
-    ID           int            `db:"id" json:"id"`
-    PropertyName string         `db:"property_name" json:"property_name"`
-    Type         string         `db:"type" json:"type"`
-    Bedrooms     int            `db:"bedrooms" json:"bedrooms"`
-    Bathrooms    int            `db:"bathrooms" json:"bathrooms"`
-    Amenities    pq.StringArray `gorm:"type:text[]" db:"amenities" json:"amenities"`
-    LocationID   int            `db:"location_id" json:"location_id"`
+    ID           uint      `gorm:"primaryKey"`
+    PropertyName string    `gorm:"not null"`
+    Type         string    `gorm:"not null"`  // e.g., apartment, house, villa
+    Bedrooms     int       `gorm:"not null"`
+    Bathrooms    int       `gorm:"not null"`
+    Amenities    string    `gorm:"type:json"` // Store as JSON string
+    LocationID   uint      `gorm:"not null"`
+    PropertyID   uint      `gorm:"not null"`  // Foreign key to original property
+    Location     Location  `gorm:"foreignKey:LocationID"`
+    CreatedAt    time.Time
+    UpdatedAt    time.Time
 }
+
 type PropertyDetail struct {
     ID          int                    `db:"id" json:"id"`
     PropertyID  int                    `db:"property_id" json:"property_id"`

@@ -376,3 +376,105 @@ func (c *BookingController) fetchPropertyData(apiURL string) ([]models.Property,
 
     return properties, nil
 }
+
+func (c *BookingController) CreateRentalProperty() {
+    var property models.RentalProperty
+    
+    // Parse request body
+    err := json.Unmarshal(c.Ctx.Input.RequestBody, &property)
+    if err != nil {
+        c.Ctx.Output.SetStatus(400)
+        c.Data["json"] = map[string]string{"error": "Invalid request body"}
+        c.ServeJSON()
+        return
+    }
+
+    // Validate required fields
+    if property.PropertyName == "" || property.Type == "" {
+        c.Ctx.Output.SetStatus(400)
+        c.Data["json"] = map[string]string{"error": "Property name and type are required"}
+        c.ServeJSON()
+        return
+    }
+
+    // Verify location exists
+    var location models.Location
+    result := conf.DB.First(&location, property.LocationID)
+    if result.Error != nil {
+        c.Ctx.Output.SetStatus(400)
+        c.Data["json"] = map[string]string{"error": "Invalid location ID"}
+        c.ServeJSON()
+        return
+    }
+
+    // Create property
+    result = conf.DB.Create(&property)
+    if result.Error != nil {
+        c.Ctx.Output.SetStatus(500)
+        c.Data["json"] = map[string]string{"error": "Failed to create property"}
+        c.ServeJSON()
+        return
+    }
+
+    c.Ctx.Output.SetStatus(201)
+    c.Data["json"] = property
+    c.ServeJSON()
+}
+
+func (c *BookingController) GetRentalProperty() {
+    propertyID := c.Ctx.Input.Param(":id")
+    
+    var property models.RentalProperty
+    result := conf.DB.Preload("Location").First(&property, propertyID)
+    if result.Error != nil {
+        c.Ctx.Output.SetStatus(404)
+        c.Data["json"] = map[string]string{"error": "Property not found"}
+        c.ServeJSON()
+        return
+    }
+
+    c.Data["json"] = property
+    c.ServeJSON()
+}
+
+func (c *BookingController) ListRentalProperties() {
+    var properties []models.RentalProperty
+    
+    // Get query parameters
+    page, _ := c.GetInt("page", 1)
+    pageSize, _ := c.GetInt("pageSize", 10)
+    propertyType := c.GetString("type")
+    minBedrooms, _ := c.GetInt("minBedrooms")
+    
+    // Build query
+    query := conf.DB.Preload("Location")
+    
+    if propertyType != "" {
+        query = query.Where("type = ?", propertyType)
+    }
+    if minBedrooms > 0 {
+        query = query.Where("bedrooms >= ?", minBedrooms)
+    }
+    
+    // Execute query with pagination
+    offset := (page - 1) * pageSize
+    result := query.Offset(offset).Limit(pageSize).Find(&properties)
+    if result.Error != nil {
+        c.Ctx.Output.SetStatus(500)
+        c.Data["json"] = map[string]string{"error": "Failed to fetch properties"}
+        c.ServeJSON()
+        return
+    }
+    
+    // Get total count
+    var total int64
+    conf.DB.Model(&models.RentalProperty{}).Count(&total)
+    
+    c.Data["json"] = map[string]interface{}{
+        "properties": properties,
+        "page":      page,
+        "pageSize":  pageSize,
+        "total":     total,
+    }
+    c.ServeJSON()
+}
